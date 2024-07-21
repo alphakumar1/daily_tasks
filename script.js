@@ -12,6 +12,7 @@ let completedDailyTasks = new Set();
 let completedHabits = new Set();
 
 document.addEventListener('DOMContentLoaded', () => {
+  loadData();
   renderTasks();
   renderDailyTasks();
   renderQuests();
@@ -24,6 +25,31 @@ document.addEventListener('DOMContentLoaded', () => {
   // Reset daily tasks at 12 PM
   setInterval(resetDailyTasks, 60 * 1000); // Check every minute
 });
+
+function loadData() {
+  tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+  dailyTasks = JSON.parse(localStorage.getItem('dailyTasks')) || [];
+  quests = JSON.parse(localStorage.getItem('quests')) || [];
+  habits = JSON.parse(localStorage.getItem('habits')) || [];
+  skills = JSON.parse(localStorage.getItem('skills')) || [];
+  achievements = JSON.parse(localStorage.getItem('achievements')) || [];
+  streaks = JSON.parse(localStorage.getItem('streaks')) || 0;
+  completedDailyTasks = new Set(JSON.parse(localStorage.getItem('completedDailyTasks')) || []);
+  completedHabits = new Set(JSON.parse(localStorage.getItem('completedHabits')) || []);
+}
+
+function saveData() {
+  localStorage.setItem('tasks', JSON.stringify(tasks));
+  localStorage.setItem('dailyTasks', JSON.stringify(dailyTasks));
+  localStorage.setItem('quests', JSON.stringify(quests));
+  localStorage.setItem('habits', JSON.stringify(habits));
+  localStorage.setItem('skills', JSON.stringify(skills));
+  localStorage.setItem('achievements', JSON.stringify(achievements));
+  localStorage.setItem('streaks', JSON.stringify(streaks));
+  localStorage.setItem('completedDailyTasks', JSON.stringify(Array.from(completedDailyTasks)));
+  localStorage.setItem('completedHabits', JSON.stringify(Array.from(completedHabits)));
+  localStorage.setItem('habitStreaks', JSON.stringify(habitStreaks));
+}
 
 function resetDailyTasks() {
   const now = new Date();
@@ -38,6 +64,7 @@ function resetDailyTasks() {
 
     dailyTasks.forEach(task => task.completed = false);
     completedDailyTasks.clear();
+    saveData(); // Save to local storage
     renderDailyTasks();
     renderStreak();
   }
@@ -97,6 +124,7 @@ function addTask() {
   };
 
   tasks.push(task);
+  saveData(); // Save to local storage
   renderTasks();
   renderTracker();
 
@@ -112,6 +140,7 @@ function deleteDailyTask(taskId) {
     streaks = 0;
     renderStreak();
   }
+  saveData(); // Save to local storage
   renderDailyTasks(); // Re-render daily tasks after deletion
 }
 
@@ -121,10 +150,15 @@ function deleteQuest(quest) {
 
 function deleteTask(task) {
   tasks = tasks.filter(t => t !== task);
+  saveData(); // Save to local storage
+  renderTasks();
+  renderTracker();
 }
+
 
 function deleteHabit(habitName) {
   habits = habits.filter(habit => habit.name !== habitName);
+  saveData(); // Save to local storage
   renderHabits(); // Re-render habits after deletion
 }
 
@@ -179,6 +213,7 @@ function addQuest() {
   document.getElementById('task-reward').value = '';
   document.getElementById('task-punishment').value = '';
 }
+
 function addHabit() {
   const habitName = document.getElementById('task-title').value;
 
@@ -193,6 +228,7 @@ function addHabit() {
       createdAt: new Date().toLocaleDateString(),
       streak: 0,
     });
+    saveData(); // Save to local storage
     renderHabits();
   } else {
     alert('This habit already exists.');
@@ -214,6 +250,7 @@ function addSkill() {
       name: skillName,
       progress: 0,
     });
+    saveData(); // Save to local storage
     renderSkills();
   } else {
     alert('This skill already exists.');
@@ -232,11 +269,13 @@ function completeDailyTask(task) {
 
   task.completed = true;
   completedDailyTasks.add(task.id + today);
+  saveData(); // Save to local storage
   renderDailyTasks();
 
   const allCompleted = dailyTasks.every(task => task.completed);
   if (allCompleted) {
     streaks++;
+    saveData(); // Save to local storage
   }
   renderStreak();
 }
@@ -276,12 +315,20 @@ function completeHabit(habit) {
   }
 
   completedHabits.add(habit.name);
+  saveData(); // Save to local storage
   renderHabits();
 }
 
+function completeTask(task) {
+  task.completed = true;
+  saveData(); // Save to local storage
+  renderTasks();
+  renderTracker();
+}
 
 function completeQuest(quest) {
   quest.completed = true;
+  saveData(); // Save to local storage
   renderQuests();
   renderTracker();
 }
@@ -292,11 +339,14 @@ function addAchievement(name) {
   };
 
   achievements.push(achievement);
+  saveData(); // Save to local storage
   renderAchievements();
 }
 
 function deleteSkill(skill) {
   skills = skills.filter(s => s !== skill);
+  saveData(); // Save to local storage
+  renderSkills();
 }
 
 function decreaseSkillProgress(skill) {
@@ -304,6 +354,7 @@ function decreaseSkillProgress(skill) {
   if (skill.progress < 0) {
     skill.progress = 0;
   }
+  saveData(); // Save to local storage
   renderSkills();
 }
 
@@ -314,6 +365,7 @@ function increaseSkillProgress(skill) {
     addAchievement(skill.name); // Move to achievements on completion
     deleteSkill(skill);
   }
+  saveData(); // Save to local storage
   renderSkills();
 }
 
@@ -509,6 +561,8 @@ function renderTracker() {
     div.textContent = `${quest.title} - Completed Reward: ${quest.reward}, Punishment: ${quest.punishment}`;
     taskTracker.appendChild(div);
   });
+
+  saveData(); // Save to local storage
 }
 
 function renderAchievements() {
@@ -552,4 +606,15 @@ function updateTimerDisplay() {
   const minutes = Math.floor(timerSeconds / 60);
   const seconds = timerSeconds % 60;
   document.getElementById('timer-display').textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then(registration => {
+        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+      }, err => {
+        console.log('ServiceWorker registration failed: ', err);
+      });
+  });
 }
